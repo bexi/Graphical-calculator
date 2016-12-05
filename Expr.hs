@@ -6,17 +6,17 @@ import Test.QuickCheck
 -------------------------------------------------------------------------
 
 -- test data for Add and Mul
-expr1 = Add (Num 5) (Num 3)
-expr2 = Mul expr1 expr1
-expr3 = Add expr2 (Num 6)
-expr4 = Mul (Num 5) (Num 3)
-expr5 = Add expr2 expr4
-expr6 = Add expr4 expr4
+expr1 = Add (Num 5) (Num 3)  -- 8
+expr2 = Mul expr1 expr1     -- 64
+expr3 = Add expr2 (Num 6)   -- 70
+expr4 = Mul (Num 5) (Num 3) -- 15
+expr5 = Add expr2 expr4     -- 79
+expr6 = Add expr4 expr4     -- 30
 -- test data for Sin and Cos
 expr7 = Sin (Num 5)
 expr8 = Sin expr1
 expr9 = Cos expr6
-expr10 = Cos (Add X expr1)
+expr10 = Cos (Add X expr1)  -- x=5 --> 0.9 
 
 instance Arbitrary Expr where
   arbitrary = sized arbExpr
@@ -54,9 +54,15 @@ showTrig (Mul a b)  = "(" ++ showExpr (Mul a b) ++ ")"
 isInt :: Double -> Bool
 isInt x = x == fromInteger (round x)
 
--- calculates the value of the expression
+-- calculates the value of the expression,
+--the second parameter is the wanted value of X
 eval :: Expr -> Double -> Double
-eval = undefined
+eval (X)       x = x
+eval (Num n)   x = n
+eval (Add a b) x = (eval a x) + (eval b x)
+eval (Mul a b) x = (eval a x) * (eval b x)
+eval (Sin a)   x = sin (eval a x)
+eval (Cos a)   x = cos (eval a x)
 
 -- tries to interpret the string as an expression,
 -- and returns Just of that expression if it succeeds.
