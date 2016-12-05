@@ -3,7 +3,15 @@ module Expr where
 
 import Test.QuickCheck
 
-------------------------------------------------------------------------- 
+-------------------------------------------------------------------------
+
+-- test data
+expr1 = Add (Num 5) (Num 3)
+expr2 = Mul expr1 expr1
+expr3 = Add expr2 (Num 6)
+expr4 = Mul (Num 5) (Num 3)
+expr5 = Add expr2 expr4
+expr6 = Add expr4 expr4
 
 instance Arbitrary Expr where
   arbitrary = sized arbExpr
@@ -18,7 +26,18 @@ data Expr =   Num Double
 
 -- converts any expression to string
 showExpr :: Expr -> String
-showExpr = undefined
+showExpr (Num n) | isInt n        = show (round n)
+showExpr (Num n) | not (isInt n)  = show n
+showExpr (Add a b)                = showExpr a ++ "+" ++ showExpr b
+showExpr (Mul a b)                = showFact a ++ "*" ++ showFact b
+
+showFact :: Expr -> String
+showFact (Num n)    = showExpr (Num n)
+showFact (Add a b)  = "(" ++ showExpr (Add a b) ++ ")"
+showFact (Mul a b)  = showExpr (Mul a b)
+
+isInt :: Double -> Bool
+isInt x = x == fromInteger (round x)
 
 -- calculates the value of the expression
 eval :: Expr -> Double -> Double
