@@ -10,9 +10,28 @@ import Expr
 
 canWidth  = 300
 canHeight = 300
+scale     = 0.04
 
+-- reads the expression from the given input element
+-- and draws the graph on the given canvas
 readAndDraw :: Elem -> Canvas -> IO ()
 readAndDraw = undefined
+
+-- will calculate all the points of the graph in terms of pixels
+points :: Expr -> Double -> (Int,Int) -> [Point]
+points expr scale (x,y) = [(pixel, realToPix (eval expr pixel)) | pixel <- [0..300]]
+    where
+          -- converts a pixel x-coordinate to a real x-coordinate
+          pixToReal :: Double -> Double
+          pixToReal x = x/25-6
+
+          -- converts a real y-coordinate to a pixel y-coordinate
+          realToPix :: Double -> Double
+          realToPix y = (y-6)*(-25)
+
+-- zoom in and out
+
+-- differentiate
 
 main = do
     -- Elements
