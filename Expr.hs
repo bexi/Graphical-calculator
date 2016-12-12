@@ -168,8 +168,8 @@ simplify (Operator o (Num 0) e) | (name o == "+") = simplify e
 simplify (Operator o e (Num 0)) | (name o == "+") = simplify e
 simplify (Operator o (Num 0) e) | (name o == "*") = (Num 0)
 simplify (Operator o e (Num 0)) | (name o == "*") = (Num 0)
-simplify (Operator o (Num 1) e) | (name o == "*") = e
-simplify (Operator o e (Num 1)) | (name o == "*") = e
+simplify (Operator o (Num 1) e) | (name o == "*") = simplify e
+simplify (Operator o e (Num 1)) | (name o == "*") = simplify e
 
 simplify (Operator o (Num n1) (Num n2)) = Num (func o n1 n2)
 simplify (Operator o e1 e2) | hasVariable (Operator o e1 e2) = (Operator o (simplify e1) (simplify e2))
@@ -180,6 +180,9 @@ simplify (Function f e) | hasVariable e = Function f (simplify e)
                         | otherwise = simplify (Function f (simplify e))
 simplify e = e
 
+prop_simplify :: Expr -> Bool
+prop_simplify expr = eval (simplify expr) 1 == eval expr 1
+
 -- checks if an expression contains a variable
 hasVariable :: Expr -> Bool
 hasVariable X       = True
@@ -189,4 +192,18 @@ hasVariable (Function f e)     = hasVariable e
 
 -- differentiates the expression (with respect to x)
 differentiate :: Expr -> Expr
-differentiate = undefined
+differentiate expr = simplify (differentiate' expr)
+
+differentiate' :: Expr -> Expr
+differentiate' (Num n)             = Num 0
+differentiate' (X)                 = Num 1
+differentiate' (Operator o e1 e2) | (not (hasVariable (Operator o e1 e2))) = Num 0
+differentiate' (Operator o e1 e2) | (name o == "+") = Operator o (differentiate' e1) (differentiate' e2)
+
+differentiate' (Operator o (Num n1) (Num n2))          = Num 0
+differentiate' (Operator o (Num n) e) | (hasVariable e) = Operator o (Num n) (differentiate' e)
+differentiate' (Operator o e (Num n)) | (hasVariable e) = Operator o (differentiate' e) (Num n)
+
+differentiate' (Function f e) | not (hasVariable (Function f e)) = (Num 0)
+differentiate' (Function f e) | (nameF f == "cos ") = Operator mul (differentiate' e) (Operator mul (Num (-1)) (Function sin' e))
+differentiate' (Function f e) | (nameF f == "sin ") = Operator mul (differentiate' e) (Function cos' e)
