@@ -1,14 +1,9 @@
 
-module Test where
+module Expr where
 
-import Test.QuickCheck
 import Parsing
-import Data.Maybe
 
 -------------------------------------------------------------------------
-
-instance Arbitrary Expr where
-  arbitrary = sized arbExpr
 
 instance Show Expr where
   show = showExpr
@@ -142,25 +137,6 @@ leftAssoc :: (t->t->t) -> Parser t -> Parser sep -> Parser t
 leftAssoc op item sep = do i:is <- chain item sep
                            return (foldl op i is)
 
--- property for show and read functions
-prop_ShowReadExpr :: Expr -> Bool
-prop_ShowReadExpr expr = (fromJust (readExpr (showExpr expr))) == expr
-
--- generator for expressions
-arbExpr :: Int -> Gen Expr
-arbExpr size = frequency [(1, num), (size, operation), (size, function)]
-  where num = elements [Num n | n<-[0..100]]
-        var = elements [X]
-        operation = do op <- elements [Operator mul, Operator plus]
-                       let size' = size `div` 2
-                       a <- arbExpr size'
-                       b <- arbExpr size'
-                       return (op a b)
-        function  = do fu <- elements [Function cos', Function sin']
-                       let size' = size `div` 2
-                       a <- arbExpr size'
-                       return (fu a)
-
 -- simplyfy an expression to its smallest representation
 simplify :: Expr -> Expr
 -- cases for operations
@@ -179,9 +155,6 @@ simplify (Function f (Num a)) = Num ((funcF f) a)
 simplify (Function f e) | hasVariable e = Function f (simplify e)
                         | otherwise = simplify (Function f (simplify e))
 simplify e = e
-
-prop_simplify :: Expr -> Bool
-prop_simplify expr = eval (simplify expr) 1 == eval expr 1
 
 -- checks if an expression contains a variable
 hasVariable :: Expr -> Bool
