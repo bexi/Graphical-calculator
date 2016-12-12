@@ -35,6 +35,19 @@ data Fu = Fu {funcF :: Double -> Double,
               nameF :: String,
               prioF :: Int}
 
+-- smart data "constructors"
+plus', mul' :: Expr -> Expr -> Expr
+plus' e (Num 0) = e
+plus' (Num 0) e = e
+plus' e1 e2     = Operator plus e1 e2
+mul' e (Num 0)  = Num 0
+mul' (Num 0) e  = Num 0
+mul' e (Num 1)  = e
+mul' (Num 1) e  = e
+mul' e1 e2      = Operator mul e1 e2
+-- not nessesary but it gives the program the same "look"
+cosinus e = Function cos' e
+sinus   e = Function sin' e
 
 --operations
 mul  = Op {func=(*), name="*", prio=2}
@@ -137,7 +150,7 @@ string (c:s) = do c' <- char c
                   s' <- string s
                   return (c':s')
 
--- constructor, parser for result, parser for input
+-- input: constructor, parser for result, parser for seperators
 leftAssoc :: (t->t->t) -> Parser t -> Parser sep -> Parser t
 leftAssoc op item sep = do i:is <- chain item sep
                            return (foldl op i is)
