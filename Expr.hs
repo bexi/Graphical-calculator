@@ -35,20 +35,6 @@ data Fu = Fu {funcF :: Double -> Double,
               nameF :: String,
               prioF :: Int}
 
--- smart data "constructors"
-plus', mul' :: Expr -> Expr -> Expr
-plus' e (Num 0) = e
-plus' (Num 0) e = e
-plus' e1 e2     = Operator plus e1 e2
-mul' e (Num 0)  = Num 0
-mul' (Num 0) e  = Num 0
-mul' e (Num 1)  = e
-mul' (Num 1) e  = e
-mul' e1 e2      = Operator mul e1 e2
--- not nessesary but it gives the program the same "look"
-cosinus e = Function cos' e
-sinus   e = Function sin' e
-
 --operations
 mul  = Op {func=(*), name="*", prio=2}
 plus = Op {func=(+), name="+", prio=1}
@@ -72,7 +58,8 @@ expr10 = Operator mul (Operator mul (Num 6) (Num 3)) (Num 8)
 expr11 = Operator mul (Num 6) (Operator mul (Num 3) (Num 8))
 
 expr12 = Function sin' (Function cos' (Operator plus (Num 5) (Function cos' (Num 5)))) -- cos sin 5
-
+expr13 = Operator mul (X) (Operator mul (Num 1) (Operator mul (Num 7) (Num 4)))
+expr14 = Operator mul (Num 5) (Operator mul (X) (Operator mul (Num 7) (X)))
 
 
 expr1S = "2+8"
@@ -176,7 +163,29 @@ arbExpr size = frequency [(1, num), (size, operation), (size, function)]
 
 -- simplyfy an expression to its smallest representation
 simplify :: Expr -> Expr
-simplify = undefined
+-- cases for operations
+simplify (Operator o (Num 0) e) | (name o == "+") = simplify e
+simplify (Operator o e (Num 0)) | (name o == "+") = simplify e
+simplify (Operator o (Num 0) e) | (name o == "*") = (Num 0)
+simplify (Operator o e (Num 0)) | (name o == "*") = (Num 0)
+simplify (Operator o (Num 1) e) | (name o == "*") = e
+simplify (Operator o e (Num 1)) | (name o == "*") = e
+
+simplify (Operator o (Num n1) (Num n2)) = Num (func o n1 n2)
+simplify (Operator o e1 e2) | hasVariable (Operator o e1 e2) = (Operator o (simplify e1) (simplify e2))
+                            | otherwise = simplify (Operator o (simplify e1) (simplify e2))
+
+simplify (Function f (Num a)) = Num ((funcF f) a)
+simplify (Function f e) | hasVariable e = Function f (simplify e)
+                        | otherwise = simplify (Function f (simplify e))
+simplify e = e
+
+-- checks if an expression contains a variable
+hasVariable :: Expr -> Bool
+hasVariable X       = True
+hasVariable (Num n) = False
+hasVariable (Operator o e1 e2) = hasVariable e1 || hasVariable e2
+hasVariable (Function f e)     = hasVariable e
 
 -- differentiates the expression (with respect to x)
 differentiate :: Expr -> Expr
