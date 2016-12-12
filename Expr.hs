@@ -13,11 +13,18 @@ instance Arbitrary Expr where
 instance Show Expr where
   show = showExpr
 
+instance Eq Op where
+  (==) o1 o2 = name o1 == name o2
+
+instance Eq Fu where
+  (==) o1 o2 = nameF o1 == nameF o2
+
 -- represents expressions
 data Expr =   Num Double
             | Operator Op Expr Expr
             | Function Fu Expr
             | X
+            deriving (Eq)
 
 data Op = Op {func :: Double -> Double -> Double,
               name :: String,
@@ -42,9 +49,18 @@ expr3 = Operator plus expr1 expr2     --2+8+1*7
 expr4 = Operator mul expr1 expr2      --(2+8)*1*7
 expr5 = Function cos' (Num 5)         --cos 5
 expr6 = Function sin' expr3           --sin (2+8+1*7)
-expr7 = Function sin' (Function sin' (Num 5)) -- cos sin 5
+expr7 = Function sin' (Function sin' (Operator plus (Num 5) (Num 5))) -- cos sin 5
 expr8 = Operator plus (Operator plus (Num 6) (Num 3)) (Num 8)
 expr9 = Operator plus (Num 6) (Operator plus (Num 3) (Num 8))
+addX3 = Operator plus (Num 6) (Operator plus (Operator plus (Num 7) (Num 4)) (Num 1))
+mulX3 = Operator mul (Num 6) (Operator mul (Num 1) (Operator mul (Num 7) (Num 4)))
+
+expr10 = Operator mul (Operator mul (Num 6) (Num 3)) (Num 8)
+expr11 = Operator mul (Num 6) (Operator mul (Num 3) (Num 8))
+
+expr12 = Function sin' (Function cos' (Operator plus (Num 5) (Function cos' (Num 5)))) -- cos sin 5
+
+
 
 expr1S = "2+8"
 expr2S = "cos 3"
@@ -63,21 +79,18 @@ showExpr :: Expr -> String
 showExpr (X)                      = "x"
 showExpr (Num n) | isInt n        = show (round n)
 showExpr (Num n) | not (isInt n)  = show n
-showExpr (Operator o e1 e2) | (prio o == 1) = showExpr e1 ++ name o ++ showExpr e2
-showExpr (Operator o e1 e2) | (prio o == 2) = showExprOp e1 ++ name o ++ showExprOp e2
+showExpr (Operator o e1 e2) | (prio o == 1) = showExpr e1 ++ name o ++ showExprOp e2
+showExpr (Operator o e1 e2) | (prio o == 2) = showExprOp e1 ++ name o ++ showExprFu e2 -- changed from Op
 showExpr (Function o e)                     = nameF o ++ showExprFu e
 
-showExprOp (Operator o e1 e2) | (prio o == 1) = "(" ++ showExpr e1 ++ name o ++ showExpr e2 ++ ")"
-showExprOp (Operator o e1 e2) | (prio o == 2) = showExprOp e1 ++ name o ++ showExprOp e2
-showExprOp (Function o e)                     = nameF o ++ showExprFu e
-showExprOp (X)                                = "x"
-showExprOp (Num n)                            = showExpr (Num n)
+--showFactor
+showExprOp (Operator o e1 e2) | (prio o == 1) = "(" ++ showExpr (Operator o e1 e2) ++ ")"
+showExprOp e = showExpr e
 
-showExprFu (Operator o e1 e2) | (prio o == 1) = "(" ++ showExpr e1 ++ name o ++ showExpr e2 ++ ")"
-showExprFu (Operator o e1 e2) | (prio o == 2) = "(" ++ showExprOp e1 ++ name o ++ showExprOp e2 ++ ")"
-showExprFu (Function o e)     = nameF o ++ showExprFu e
-showExprFu (X)                = "x"
-showExprFu (Num n)            = showExpr (Num n)
+--showFuncParam
+showExprFu (Operator o e1 e2) = "(" ++ showExpr (Operator o e1 e2) ++ ")"
+showExprFu e = showExpr e
+
 
 isInt :: Double -> Bool
 isInt x = x == fromInteger (round x)
@@ -104,15 +117,18 @@ expr, term, factor :: Parser Expr
 expr = leftAssoc (Operator plus) term (char '+')
 term = leftAssoc (Operator mul) factor (char '*')
 factor = (Num <$> readsP) <|> (char '(' *> expr <* char ')')
-                          <|> ((Function cos') <$> ((string "cos ") *> expr))
-                          <|> ((Function sin') <$> ((string "sin ") *> expr))
+                          <|> do f <- func'
+                                 e <- factor
+                                 return (Function f e)
                           <|> (do x <- char 'x'
                                   return X)
-
--- constructor, parser for result, parser for input
-leftAssoc :: (t->t->t) -> Parser t -> Parser sep -> Parser t
-leftAssoc op item sep = do i:is <- chain item sep
-                           return (foldl op i is)
+-- parser for a Fu (function data type)
+func' :: Parser Fu
+func' = do string "sin "
+           return sin'
+      <|>
+        do string "cos "
+           return cos'
 
 -- parser for a string
 string :: String -> Parser String
@@ -121,13 +137,29 @@ string (c:s) = do c' <- char c
                   s' <- string s
                   return (c':s')
 
+-- constructor, parser for result, parser for input
+leftAssoc :: (t->t->t) -> Parser t -> Parser sep -> Parser t
+leftAssoc op item sep = do i:is <- chain item sep
+                           return (foldl op i is)
+
 -- property for show and read functions
 prop_ShowReadExpr :: Expr -> Bool
-prop_ShowReadExpr = undefined
+prop_ShowReadExpr expr = (fromJust (readExpr (showExpr expr))) == expr
 
 -- generator for expressions
 arbExpr :: Int -> Gen Expr
-arbExpr = undefined
+arbExpr size = frequency [(1, num), (size, operation), (size, function)]
+  where num = elements [Num n | n<-[0..100]]
+        var = elements [X]
+        operation = do op <- elements [Operator mul, Operator plus]
+                       let size' = size `div` 2
+                       a <- arbExpr size'
+                       b <- arbExpr size'
+                       return (op a b)
+        function  = do fu <- elements [Function cos', Function sin']
+                       let size' = size `div` 2
+                       a <- arbExpr size'
+                       return (fu a)
 
 -- simplyfy an expression to its smallest representation
 simplify :: Expr -> Expr
