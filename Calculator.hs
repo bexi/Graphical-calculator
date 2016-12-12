@@ -1,5 +1,3 @@
-module Calculator where
-
 import Control.Monad (when)
 
 import Haste hiding (eval)
@@ -9,8 +7,6 @@ import Haste.Graphics.Canvas
 
 import Pages
 import Expr
-
-
 
 canWidth  = 300
 canHeight = 300
@@ -40,7 +36,7 @@ main = do
     select input
 
     -- Interaction
-    Just can <- getCanvas canvas
+    Just can <- fromElem canvas
     onEvent draw  Click $ \_    -> readAndDraw input can
     onEvent input KeyUp $ \code -> when (code==13) $ readAndDraw input can
       -- "Enter" key has code 13
