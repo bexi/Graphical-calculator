@@ -4,30 +4,36 @@ import Haste hiding (eval)
 import Haste.DOM
 import Haste.Events
 import Haste.Graphics.Canvas
+import Data.Maybe
 
 import Pages
 import Expr
 
 canWidth  = 300
 canHeight = 300
-scale     = 0.04
+--scale     = 0.04
 
 -- reads the expression from the given input element
 -- and draws the graph on the given canvas
 readAndDraw :: Elem -> Canvas -> IO ()
-readAndDraw = undefined
+readAndDraw e canvas = do text <- getProp e "value"
+                          let expr = fromJust (readExpr text)
+                          let p = path (points expr 0.04 (300,300))
+                          let picture = stroke p
+                          render canvas picture
+
 
 -- will calculate all the points of the graph in terms of pixels
 points :: Expr -> Double -> (Int,Int) -> [Point]
-points expr scale (x,y) = [(pixel, realToPix (eval expr pixel)) | pixel <- [0..300]]
+points expr scale (x,y) = [(pixel, realToPix (eval expr (pixToReal pixel))) | pixel <- [0..300]]
     where
           -- converts a pixel x-coordinate to a real x-coordinate
           pixToReal :: Double -> Double
-          pixToReal x = x/25-6
+          pixToReal x = x*scale-6
 
           -- converts a real y-coordinate to a pixel y-coordinate
           realToPix :: Double -> Double
-          realToPix y = (y-6)*(-25)
+          realToPix y = (y-6)/(-scale)
 
 -- zoom in and out
 
